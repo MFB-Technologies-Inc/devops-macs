@@ -11,7 +11,9 @@ checks current state and skips work that's already done.
 1. Verifies the host is Apple Silicon macOS.
 2. Installs the Xcode Command Line Tools.
 3. Installs Homebrew (if missing) and runs `brew bundle` against the `Brewfile`.
-4. Installs and brings up Tailscale, joining the tailnet via `TS_AUTHKEY`.
+4. Installs Tailscale (formula, not cask) as a system LaunchDaemon — so
+   `tailscaled` starts at boot before any user logs in — and joins the
+   tailnet via `TS_AUTHKEY` with Tailscale SSH enabled.
 5. Downloads, configures, and starts the Azure DevOps agent as a launchd service.
 
 ## Prerequisites

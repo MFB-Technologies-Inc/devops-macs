@@ -36,6 +36,12 @@ supporting it (CI, docs, declarative package lists) doesn't belong here.
 - Apple Silicon Homebrew lives at `/opt/homebrew/bin/brew`. Don't assume
   it's on `PATH` — call it by absolute path inside the script, or `eval`
   its shellenv first.
+- **Tailscale must be headless.** Install via the Homebrew formula
+  (`brew "tailscale"`), not the cask. Register `tailscaled` as a system
+  LaunchDaemon via `sudo brew services start tailscale` so it launches at
+  boot before any user logs in. The cask installs a per-user GUI app that
+  only starts after a graphical login — wrong shape for a runner. Always
+  bring the node up with `--ssh` so we can reach it over Tailscale SSH.
 
 ## When extending
 

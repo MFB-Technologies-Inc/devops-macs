@@ -6,6 +6,7 @@ brew "jq"
 brew "curl"
 brew "wget"
 
-# Tailscale is installed as a cask by lib/tailscale.sh because the GUI app
-# provides the system extension needed for `tailscale up --ssh`. Do not
-# duplicate it here.
+# Headless tailscaled. We use the formula (not the cask) so it can run as
+# a system LaunchDaemon that starts at boot, before any user logs in.
+# See lib/tailscale.sh for the service install and `tailscale up` invocation.
+brew "tailscale"
