@@ -43,10 +43,16 @@ _ensure_tailscaled_daemon() {
 _ensure_tailnet_joined() {
   # `tailscale status` exits 0 only when the node is authenticated and
   # connected to the tailnet. Logged-out or unauthenticated returns non-zero.
+  # If we're already joined, tailscaled will reconnect on every reboot using
+  # its persisted node identity (state file under /opt/homebrew/var/lib/
+  # tailscale/) — no auth key needed.
   if sudo "$TAILSCALE" status >/dev/null 2>&1; then
     log "tailnet already joined"
     return 0
   fi
+  # Only required for first-time registration. Deferred from setup.sh so
+  # post-reboot re-runs don't need the key in their env.
+  require_env TS_AUTHKEY
   log "joining tailnet (Tailscale SSH enabled)"
   sudo "$TAILSCALE" up \
     --authkey="$TS_AUTHKEY" \

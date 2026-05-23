@@ -26,9 +26,11 @@ checks current state and skips work that's already done.
 
 ```sh
 # Required
-export TS_AUTHKEY=tskey-auth-...           # Tailscale pre-auth key
 export AZP_URL=https://dev.azure.com/your-org
 export AZP_TOKEN=...                        # PAT with Agent Pools (read & manage)
+
+# Required only on first run (when the node isn't yet joined to the tailnet)
+export TS_AUTHKEY=tskey-auth-...
 
 # Optional
 export AZP_POOL="Default"                   # default: Default
@@ -39,7 +41,29 @@ export AZP_AGENT_NAME="$(hostname -s)"     # default: short hostname
 
 The script is intended to be re-run any time you want to bring a Mac back to
 the canonical runner state — after macOS updates, after manual fiddling, or
-when this repo's `Brewfile` / agent version changes.
+when this repo's `Brewfile` / agent version changes. Re-runs after the
+initial registration do **not** need `TS_AUTHKEY`; see "Tailscale persistence"
+below.
+
+## Tailscale persistence and auth key requirements
+
+`TS_AUTHKEY` is a one-time bootstrap credential. On first `tailscale up`,
+the coordination server issues a long-lived node key which `tailscaled`
+writes to its state file at `/opt/homebrew/var/lib/tailscale/tailscaled.state`
+(owned by root). On every subsequent reboot the LaunchDaemon starts
+`tailscaled`, which reconnects from that state file — no auth key needed.
+
+For this to keep working unattended, the key you provision with must be:
+
+- **Non-ephemeral.** Ephemeral nodes are removed from the tailnet whenever
+  they go offline, which includes every reboot. Use a reusable, non-ephemeral
+  auth key from the Tailscale admin console.
+- **Used to register a device with key expiry disabled.** Tailnet device
+  keys expire by default (typically every 90–180 days); when they do, the
+  node has to re-authenticate, which is interactive and breaks a headless
+  runner. After the runner first joins, open the Tailscale admin console
+  and mark this device as "Disable key expiry" — or apply a tailnet policy
+  that exempts runner-tagged devices from expiry.
 
 ## Layout
 

@@ -16,7 +16,10 @@ source "$REPO_DIR/lib/azp_agent.sh"
 
 ensure_apple_silicon_macos
 
-require_env TS_AUTHKEY
+# TS_AUTHKEY is required only if the node isn't already joined to the tailnet,
+# so _ensure_tailnet_joined checks for it on demand. tailscaled persists node
+# identity in its state file across reboots, so re-runs after first boot
+# don't need the auth key.
 require_env AZP_URL
 require_env AZP_TOKEN
 : "${AZP_POOL:=Default}"
