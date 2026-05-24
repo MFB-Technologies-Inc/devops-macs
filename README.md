@@ -15,9 +15,8 @@ checks current state and skips work that's already done.
    `tailscaled` starts at boot before any user logs in — and joins the
    tailnet via `TS_AUTHKEY` with Tailscale SSH enabled.
 5. Downloads, configures, and starts the Azure DevOps agent as a per-user
-   launchd service. See "Azure DevOps agent: surviving reboots" below for
-   the one-time manual step that makes the agent come back up on its own
-   after a reboot.
+   launchd service. See "Azure DevOps agent: reboot behavior" below for the
+   trade-off between fully-unattended startup and keeping FileVault on.
 
 ## Prerequisites
 
@@ -68,35 +67,44 @@ For this to keep working unattended, the key you provision with must be:
   and mark this device as "Disable key expiry" — or apply a tailnet policy
   that exempts runner-tagged devices from expiry.
 
-## Azure DevOps agent: surviving reboots
+## Azure DevOps agent: reboot behavior
 
 Unlike `tailscaled`, the AzDO agent's `svc.sh install` creates a **per-user
 LaunchAgent** (under `~/Library/LaunchAgents/`), not a system LaunchDaemon.
 This is by Microsoft's design — the agent needs access to the user's
 keychain and GUI session for Xcode signing, `security` calls, simulator
-tests, etc. — but it means the agent does **not** start until that user
-has an active login session. After an unattended reboot, the runner stays
-offline until someone logs in.
+tests, etc. — but it means the agent does **not** start until the user
+has an active login session. After a reboot, the runner stays offline
+until someone (or something) logs that user in.
 
-The fix is a **one-time manual step per Mac**: enable automatic login for
-the user that ran `setup.sh`.
+Two valid configurations; pick based on your security posture:
 
-1. **Disable FileVault** on the runner first if it's enabled. Auto-login
-   is unavailable while FileVault is on, because the disk can't be unlocked
-   without a password at boot. Runners typically live behind Tailscale on
-   restricted physical access; the trade-off is usually acceptable. Do this
-   from **System Settings → Privacy & Security → FileVault → Turn Off**.
-   Wait for the decryption to finish before continuing.
-2. **Enable auto-login** for the runner account from **System Settings →
-   Users & Groups → Automatic login as → \<runner user\>**. macOS will ask
-   for the account password to store the auto-login keychain entry.
-3. **Reboot once and confirm.** The Mac should boot, log the user in
-   automatically, and the AzDO agent should show as Online in the Azure
-   DevOps Agent Pools view within a minute.
+### Option A — Fully unattended (auto-login, no FileVault)
 
-This isn't automated by `setup.sh` because both steps are GUI-gated and
-require an interactive password entry. Once configured, the setting
-survives macOS updates.
+For runners where unattended recovery from reboots matters more than
+at-rest disk encryption.
+
+1. **Disable FileVault** if it's on. Auto-login is incompatible with
+   FileVault, because the disk can't be unlocked without a password at
+   boot. Do this from **System Settings → Privacy & Security → FileVault
+   → Turn Off** and wait for decryption to complete.
+2. **Enable auto-login** from **System Settings → Users & Groups →
+   Automatic login as → \<runner user\>**. macOS prompts for the account
+   password to store the auto-login keychain entry.
+3. **Reboot once and confirm.** The Mac boots, auto-logs in, and the agent
+   appears Online in the Azure DevOps Agent Pools view within a minute.
+
+### Option B — Keep FileVault, accept manual login
+
+For runners holding sensitive data, source, or signing material where
+at-rest encryption is non-negotiable. The trade-off is that after every
+reboot, a human has to log in (locally or over screen sharing) for the
+agent to start. The agent itself is unchanged — the LaunchAgent just
+loads on next interactive login.
+
+Neither option is automated by `setup.sh` because both rely on GUI-gated,
+password-prompting macOS settings. Once configured, the choice survives
+macOS updates.
 
 ## Layout
 
