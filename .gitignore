@@ -5,7 +5,7 @@ secrets.env
 
 # Local agent install artifacts (the agent lives in $HOME, but guard against
 # accidental in-repo extraction)
-azagent/
+myagent/
 *.tar.gz
 
 # macOS noise

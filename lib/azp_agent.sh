@@ -1,13 +1,18 @@
 # shellcheck shell=bash
 # Download, configure, and start the Azure DevOps self-hosted agent.
 #
+# We pin the bootstrap agent version and download from Microsoft's official
+# distribution endpoint (download.agent.dev.azure.com). Once the agent is
+# registered, the Azure DevOps server pushes updates to it in place, so
+# this pinned version only governs the *first* install.
+#
 # Idempotency: presence of `.agent` inside $AZP_AGENT_DIR indicates the
 # agent is already configured; we only (re-)ensure the launchd service is
 # loaded in that case.
 
-# TODO: pin a specific agent version once we've picked one. Until then,
-# we resolve the latest release tag from GitHub at install time.
-AZP_AGENT_DIR="$HOME/azagent"
+AZP_AGENT_VERSION="4.273.0"
+AZP_AGENT_DIR="$HOME/myagent"
+AZP_AGENT_URL="https://download.agent.dev.azure.com/agent/${AZP_AGENT_VERSION}/vsts-agent-osx-arm64-${AZP_AGENT_VERSION}.tar.gz"
 
 ensure_azp_agent() {
   if [ -f "$AZP_AGENT_DIR/.agent" ]; then
@@ -16,16 +21,12 @@ ensure_azp_agent() {
     return 0
   fi
 
-  log "installing azp agent into $AZP_AGENT_DIR"
+  log "installing azp agent $AZP_AGENT_VERSION into $AZP_AGENT_DIR"
   mkdir -p "$AZP_AGENT_DIR"
   cd "$AZP_AGENT_DIR"
 
-  local tarball_url
-  tarball_url="$(_resolve_azp_agent_tarball_url)"
-  [ -n "$tarball_url" ] || die "could not resolve azp agent tarball URL"
-
-  log "downloading $tarball_url"
-  curl -fsSL "$tarball_url" -o agent.tar.gz
+  log "downloading $AZP_AGENT_URL"
+  curl -fsSL "$AZP_AGENT_URL" -o agent.tar.gz
   tar xzf agent.tar.gz
   rm -f agent.tar.gz
 
@@ -41,14 +42,6 @@ ensure_azp_agent() {
     --replace
 
   _ensure_azp_service_running
-}
-
-_resolve_azp_agent_tarball_url() {
-  # Latest osx-arm64 release asset from microsoft/azure-pipelines-agent.
-  curl -fsSL https://api.github.com/repos/microsoft/azure-pipelines-agent/releases/latest \
-    | grep -oE '"browser_download_url":[[:space:]]*"[^"]+osx-arm64[^"]+\.tar\.gz"' \
-    | head -n1 \
-    | sed -E 's/.*"(https[^"]+)".*/\1/'
 }
 
 _ensure_azp_service_running() {
