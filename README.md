@@ -14,7 +14,10 @@ checks current state and skips work that's already done.
 4. Installs Tailscale (formula, not cask) as a system LaunchDaemon — so
    `tailscaled` starts at boot before any user logs in — and joins the
    tailnet via `TS_AUTHKEY` with Tailscale SSH enabled.
-5. Downloads, configures, and starts the Azure DevOps agent as a launchd service.
+5. Downloads, configures, and starts the Azure DevOps agent as a per-user
+   launchd service. See "Azure DevOps agent: surviving reboots" below for
+   the one-time manual step that makes the agent come back up on its own
+   after a reboot.
 
 ## Prerequisites
 
@@ -64,6 +67,36 @@ For this to keep working unattended, the key you provision with must be:
   runner. After the runner first joins, open the Tailscale admin console
   and mark this device as "Disable key expiry" — or apply a tailnet policy
   that exempts runner-tagged devices from expiry.
+
+## Azure DevOps agent: surviving reboots
+
+Unlike `tailscaled`, the AzDO agent's `svc.sh install` creates a **per-user
+LaunchAgent** (under `~/Library/LaunchAgents/`), not a system LaunchDaemon.
+This is by Microsoft's design — the agent needs access to the user's
+keychain and GUI session for Xcode signing, `security` calls, simulator
+tests, etc. — but it means the agent does **not** start until that user
+has an active login session. After an unattended reboot, the runner stays
+offline until someone logs in.
+
+The fix is a **one-time manual step per Mac**: enable automatic login for
+the user that ran `setup.sh`.
+
+1. **Disable FileVault** on the runner first if it's enabled. Auto-login
+   is unavailable while FileVault is on, because the disk can't be unlocked
+   without a password at boot. Runners typically live behind Tailscale on
+   restricted physical access; the trade-off is usually acceptable. Do this
+   from **System Settings → Privacy & Security → FileVault → Turn Off**.
+   Wait for the decryption to finish before continuing.
+2. **Enable auto-login** for the runner account from **System Settings →
+   Users & Groups → Automatic login as → \<runner user\>**. macOS will ask
+   for the account password to store the auto-login keychain entry.
+3. **Reboot once and confirm.** The Mac should boot, log the user in
+   automatically, and the AzDO agent should show as Online in the Azure
+   DevOps Agent Pools view within a minute.
+
+This isn't automated by `setup.sh` because both steps are GUI-gated and
+require an interactive password entry. Once configured, the setting
+survives macOS updates.
 
 ## Layout
 
