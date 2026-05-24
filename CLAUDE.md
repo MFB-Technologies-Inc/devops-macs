@@ -42,6 +42,15 @@ supporting it (CI, docs, declarative package lists) doesn't belong here.
   boot before any user logs in. The cask installs a per-user GUI app that
   only starts after a graphical login — wrong shape for a runner. Always
   bring the node up with `--ssh` so we can reach it over Tailscale SSH.
+- **Brew-installed CLIs must actually win on PATH.** Just adding a formula
+  to `Brewfile` isn't enough — `/usr/bin/git` (and friends) from the Xcode
+  CLT take precedence unless `/opt/homebrew/bin` comes first in PATH. Two
+  places we wire this: (1) `~/.zprofile` for interactive shells, done by
+  `ensure_brew_on_path` in `lib/homebrew.sh`; (2) the AzDO agent's own
+  `.env` file at `~/myagent/.env`, written by `_ensure_azp_agent_env` in
+  `lib/azp_agent.sh`, because launchd-launched processes don't inherit
+  shell PATH. Any future tool that needs to be the canonical one in
+  agent jobs must be reachable from the agent `.env` PATH.
 
 ## When extending
 

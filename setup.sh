@@ -28,6 +28,7 @@ require_env AZP_TOKEN
 ensure_xcode_clt
 ensure_homebrew
 ensure_brew_bundle "$REPO_DIR/Brewfile"
+ensure_brew_on_path
 ensure_tailscale_up
 ensure_azp_agent
 
