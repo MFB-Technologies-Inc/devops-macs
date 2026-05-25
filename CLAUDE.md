@@ -3,8 +3,14 @@
 ## What this repo is
 
 A single idempotent shell script (`setup.sh` + `lib/`) that provisions an
-Apple Silicon Mac as a DevOps runner: Xcode CLT, Homebrew packages,
-Tailscale, and an Azure DevOps self-hosted agent.
+Apple Silicon Mac as a DevOps host: Xcode CLT, Homebrew packages with the
+brew bin dir wired into PATH, and a headless Tailscale install.
+
+The script intentionally **stops short of installing a CI agent** (Azure
+DevOps, GitHub Actions, etc.). Operators install whichever agent they
+need manually after the script finishes. This keeps the script vendor-
+neutral and avoids dragging in per-CI quirks (auth flows, service install
+shapes, FileVault interactions).
 
 The script is the artifact. Anything that isn't the script or directly
 supporting it (CI, docs, declarative package lists) doesn't belong here.
@@ -44,13 +50,12 @@ supporting it (CI, docs, declarative package lists) doesn't belong here.
   bring the node up with `--ssh` so we can reach it over Tailscale SSH.
 - **Brew-installed CLIs must actually win on PATH.** Just adding a formula
   to `Brewfile` isn't enough — `/usr/bin/git` (and friends) from the Xcode
-  CLT take precedence unless `/opt/homebrew/bin` comes first in PATH. Two
-  places we wire this: (1) `~/.zprofile` for interactive shells, done by
-  `ensure_brew_on_path` in `lib/homebrew.sh`; (2) the AzDO agent's own
-  `.env` file at `~/myagent/.env`, written by `_ensure_azp_agent_env` in
-  `lib/azp_agent.sh`, because launchd-launched processes don't inherit
-  shell PATH. Any future tool that needs to be the canonical one in
-  agent jobs must be reachable from the agent `.env` PATH.
+  CLT take precedence unless `/opt/homebrew/bin` comes first in PATH.
+  `ensure_brew_on_path` in `lib/homebrew.sh` wires this into `~/.zprofile`
+  for interactive shells. Note that launchd-launched services (including
+  any CI agent the operator installs later) get a minimal PATH and do
+  **not** inherit `~/.zprofile`; the README documents how operators
+  should wire PATH into their agent's own environment.
 
 ## When extending
 
@@ -60,7 +65,12 @@ supporting it (CI, docs, declarative package lists) doesn't belong here.
   function, source it from `setup.sh`, and call it from the orchestration
   list. Keep the orchestration ordered: things that other steps depend on
   come first (Xcode CLT before Homebrew; Homebrew before anything brew
-  installs; Tailscale before the agent if the agent needs tailnet access).
+  installs).
+- Resist re-introducing CI-agent install logic here. If a specific agent
+  install proves to be repeatedly hand-rolled across machines and a clear
+  case emerges for automating it, raise the question first — the previous
+  decision was to keep this repo vendor-neutral. See git log for the
+  removal commit's rationale.
 - Adding a required env var? Validate it via `require_env` near the top of
   `setup.sh` so the script fails fast, and document it in `README.md`.
 
@@ -70,8 +80,7 @@ supporting it (CI, docs, declarative package lists) doesn't belong here.
   Macs. Target is Apple Silicon, current macOS.
 - Don't add interactive prompts. The script must run unattended.
 - Don't add a "dry-run" or "uninstall" mode unless asked — keeps scope tight.
-- Don't commit secrets, `.env` files, downloaded agent tarballs, or the
-  configured agent directory. `.gitignore` covers these.
+- Don't commit secrets or `.env` files. `.gitignore` covers these.
 
 ## Testing changes
 

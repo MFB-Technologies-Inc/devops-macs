@@ -1,7 +1,9 @@
 # devops-macs
 
-Idempotent provisioning script for turning an Apple Silicon Mac into a DevOps
-runner: Tailscale-connected and registered as a self-hosted Azure DevOps agent.
+Idempotent provisioning script for turning an Apple Silicon Mac into a
+Tailscale-connected DevOps host with a baseline toolchain installed via
+Homebrew. CI-agent installation (Azure DevOps, GitHub Actions, etc.) is
+left to the operator as a follow-on manual step.
 
 Re-running the script on an already-configured machine is safe — each step
 checks current state and skips work that's already done.
@@ -11,41 +13,37 @@ checks current state and skips work that's already done.
 1. Verifies the host is Apple Silicon macOS.
 2. Installs the Xcode Command Line Tools.
 3. Installs Homebrew (if missing) and runs `brew bundle` against the `Brewfile`.
-4. Installs Tailscale (formula, not cask) as a system LaunchDaemon — so
+4. Wires `/opt/homebrew/bin` ahead of `/usr/bin` in `~/.zprofile` so brew-installed
+   CLIs (e.g. `git`) take precedence over the Apple-bundled versions in
+   interactive shells.
+5. Installs Tailscale (formula, not cask) as a system LaunchDaemon — so
    `tailscaled` starts at boot before any user logs in — and joins the
    tailnet via `TS_AUTHKEY` with Tailscale SSH enabled.
-5. Downloads, configures, and starts the Azure DevOps agent as a per-user
-   launchd service. See "Azure DevOps agent: reboot behavior" below for the
-   trade-off between fully-unattended startup and keeping FileVault on.
+
+Once the script finishes, the Mac is reachable over Tailscale SSH and has
+the baseline toolchain ready. Install your CI agent of choice manually
+from that point.
 
 ## Prerequisites
 
 - Apple Silicon Mac (M-series) running a supported macOS.
 - An admin user; the script uses `sudo` for system-level installs.
-- Network access to GitHub, Homebrew, Tailscale, and your Azure DevOps org.
+- Network access to GitHub, Homebrew, and Tailscale.
 
 ## Usage
 
 ```sh
-# Required
-export AZP_URL=https://dev.azure.com/your-org
-export AZP_TOKEN=...                        # PAT with Agent Pools (read & manage)
-
 # Required only on first run (when the node isn't yet joined to the tailnet)
 export TS_AUTHKEY=tskey-auth-...
-
-# Optional
-export AZP_POOL="Default"                   # default: Default
-export AZP_AGENT_NAME="$(hostname -s)"     # default: short hostname
 
 ./setup.sh
 ```
 
-The script is intended to be re-run any time you want to bring a Mac back to
-the canonical runner state — after macOS updates, after manual fiddling, or
-when this repo's `Brewfile` / agent version changes. Re-runs after the
-initial registration do **not** need `TS_AUTHKEY`; see "Tailscale persistence"
-below.
+The script is intended to be re-run any time you want to bring a Mac back
+to the canonical baseline state — after macOS updates, after manual
+fiddling, or when this repo's `Brewfile` changes. Re-runs after the
+initial registration do **not** need `TS_AUTHKEY`; see "Tailscale
+persistence" below.
 
 ## Tailscale persistence and auth key requirements
 
@@ -67,49 +65,31 @@ For this to keep working unattended, the key you provision with must be:
   and mark this device as "Disable key expiry" — or apply a tailnet policy
   that exempts runner-tagged devices from expiry.
 
-## Azure DevOps agent: reboot behavior
+## Installing a CI agent (operator follow-up)
 
-Unlike `tailscaled`, the AzDO agent's `svc.sh install` creates a **per-user
-LaunchAgent** (under `~/Library/LaunchAgents/`), not a system LaunchDaemon.
-This is by Microsoft's design — the agent needs access to the user's
-keychain and GUI session for Xcode signing, `security` calls, simulator
-tests, etc. — but it means the agent does **not** start until the user
-has an active login session. After a reboot, the runner stays offline
-until someone (or something) logs that user in.
+After `setup.sh` finishes, install whichever CI agent the runner is meant
+to host (Azure DevOps, GitHub Actions, Buildkite, etc.) following that
+vendor's instructions. A couple of gotchas worth knowing regardless of
+which agent you pick:
 
-Two valid configurations; pick based on your security posture:
-
-### Option A — Fully unattended (auto-login, no FileVault)
-
-For runners where unattended recovery from reboots matters more than
-at-rest disk encryption.
-
-1. **Disable FileVault** if it's on. Auto-login is incompatible with
-   FileVault, because the disk can't be unlocked without a password at
-   boot. Do this from **System Settings → Privacy & Security → FileVault
-   → Turn Off** and wait for decryption to complete.
-2. **Enable auto-login** from **System Settings → Users & Groups →
-   Automatic login as → \<runner user\>**. macOS prompts for the account
-   password to store the auto-login keychain entry.
-3. **Reboot once and confirm.** The Mac boots, auto-logs in, and the agent
-   appears Online in the Azure DevOps Agent Pools view within a minute.
-
-### Option B — Keep FileVault, accept manual login
-
-For runners holding sensitive data, source, or signing material where
-at-rest encryption is non-negotiable. The trade-off is that after every
-reboot, a human has to log in (locally or over screen sharing) for the
-agent to start. The agent itself is unchanged — the LaunchAgent just
-loads on next interactive login.
-
-Neither option is automated by `setup.sh` because both rely on GUI-gated,
-password-prompting macOS settings. Once configured, the choice survives
-macOS updates.
+- **PATH in launchd-launched agents.** macOS launchd hands services a
+  minimal PATH that excludes `/opt/homebrew/bin`. If you want your CI
+  jobs to use the brew-installed `git` (and other brew tools), wire
+  `/opt/homebrew/bin` into the agent's environment — for the Azure DevOps
+  agent that means writing a `.env` file in the agent root containing
+  `PATH=/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
+  then restarting the agent service. Other agents have their own equivalent.
+- **Reboot recovery vs. FileVault.** Most macOS CI agents install as
+  per-user LaunchAgents and only start after a graphical login. To make
+  reboots fully unattended you typically disable FileVault and enable
+  Automatic login for the runner account. If on-disk encryption matters
+  more than unattended reboots, accept that a human has to log in after
+  each reboot for the agent to come online.
 
 ## Layout
 
 - `setup.sh` — entry point; orchestrates each step.
-- `lib/` — one file per concern (`xcode.sh`, `homebrew.sh`, `tailscale.sh`, `azp_agent.sh`), each exposing an `ensure_*` function.
+- `lib/` — one file per concern (`xcode.sh`, `homebrew.sh`, `tailscale.sh`), each exposing an `ensure_*` function.
 - `Brewfile` — declarative Homebrew package list, applied by `brew bundle`.
 
 ## Secrets

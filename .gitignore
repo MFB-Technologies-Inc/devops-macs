@@ -3,10 +3,5 @@
 secrets.env
 .envrc
 
-# Local agent install artifacts (the agent lives in $HOME, but guard against
-# accidental in-repo extraction)
-myagent/
-*.tar.gz
-
 # macOS noise
 .DS_Store

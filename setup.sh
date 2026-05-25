@@ -11,8 +11,6 @@ source "$REPO_DIR/lib/xcode.sh"
 source "$REPO_DIR/lib/homebrew.sh"
 # shellcheck source=lib/tailscale.sh
 source "$REPO_DIR/lib/tailscale.sh"
-# shellcheck source=lib/azp_agent.sh
-source "$REPO_DIR/lib/azp_agent.sh"
 
 ensure_apple_silicon_macos
 
@@ -20,16 +18,11 @@ ensure_apple_silicon_macos
 # so _ensure_tailnet_joined checks for it on demand. tailscaled persists node
 # identity in its state file across reboots, so re-runs after first boot
 # don't need the auth key.
-require_env AZP_URL
-require_env AZP_TOKEN
-: "${AZP_POOL:=Default}"
-: "${AZP_AGENT_NAME:=$(hostname -s)}"
 
 ensure_xcode_clt
 ensure_homebrew
 ensure_brew_bundle "$REPO_DIR/Brewfile"
 ensure_brew_on_path
 ensure_tailscale_up
-ensure_azp_agent
 
-log "Done. Mac is configured as a DevOps runner."
+log "Done. Mac is provisioned. Install the CI agent manually as the next step."
