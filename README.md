@@ -16,12 +16,15 @@ checks current state and skips work that's already done.
    uses it (notably Tailscale, which would otherwise register the tailnet
    node under whatever default macOS picked — e.g. "Sams-Mac-mini"). Press
    Enter to keep, or type a new one.
-4. Installs the Xcode Command Line Tools.
-5. Installs Homebrew (if missing) and runs `brew bundle` against the `Brewfile`.
-6. Wires `/opt/homebrew/bin` ahead of `/usr/bin` in `~/.zprofile` so brew-installed
+4. Configures power management so the runner stays online unattended:
+   system never sleeps, disks never sleep, and the Mac powers itself back
+   on automatically after a power outage.
+5. Installs the Xcode Command Line Tools.
+6. Installs Homebrew (if missing) and runs `brew bundle` against the `Brewfile`.
+7. Wires `/opt/homebrew/bin` ahead of `/usr/bin` in `~/.zprofile` so brew-installed
    CLIs (e.g. `git`) take precedence over the Apple-bundled versions in
    interactive shells.
-7. Installs Tailscale (formula, not cask) as a system LaunchDaemon — so
+8. Installs Tailscale (formula, not cask) as a system LaunchDaemon — so
    `tailscaled` starts at boot before any user logs in — and joins the
    tailnet via `TS_AUTHKEY` with Tailscale SSH enabled.
 
@@ -100,7 +103,7 @@ which agent you pick:
 ## Layout
 
 - `setup.sh` — entry point; orchestrates each step.
-- `lib/` — one file per concern (`hostname.sh`, `xcode.sh`, `homebrew.sh`, `tailscale.sh`), each exposing an `ensure_*` function.
+- `lib/` — one file per concern (`hostname.sh`, `power.sh`, `xcode.sh`, `homebrew.sh`, `tailscale.sh`), each exposing an `ensure_*` function.
 - `Brewfile` — declarative Homebrew package list, applied by `brew bundle`.
 
 ## Secrets
