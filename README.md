@@ -16,9 +16,10 @@ checks current state and skips work that's already done.
    uses it (notably Tailscale, which would otherwise register the tailnet
    node under whatever default macOS picked — e.g. "Sams-Mac-mini"). Press
    Enter to keep, or type a new one.
-4. Configures power management so the runner stays online unattended:
-   system never sleeps, disks never sleep, and the Mac powers itself back
-   on automatically after a power outage.
+4. Configures power management for an always-on runner: never sleeps,
+   powers itself back on after a power outage, and is scheduled to power
+   on daily at 06:00 local time so it recovers from any other off state
+   (e.g., a clean shutdown) within 24 hours.
 5. Installs the Xcode Command Line Tools.
 6. Installs Homebrew (if missing) and runs `brew bundle` against the `Brewfile`.
 7. Wires `/opt/homebrew/bin` ahead of `/usr/bin` in `~/.zprofile` so brew-installed
