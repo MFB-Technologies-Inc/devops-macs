@@ -67,12 +67,14 @@ For this to keep working unattended, the key you provision with must be:
 - **Non-ephemeral.** Ephemeral nodes are removed from the tailnet whenever
   they go offline, which includes every reboot. Use a reusable, non-ephemeral
   auth key from the Tailscale admin console.
-- **Used to register a device with key expiry disabled.** Tailnet device
-  keys expire by default (typically every 90–180 days); when they do, the
-  node has to re-authenticate, which is interactive and breaks a headless
-  runner. After the runner first joins, open the Tailscale admin console
-  and mark this device as "Disable key expiry" — or apply a tailnet policy
-  that exempts runner-tagged devices from expiry.
+- **Tagged with our standard devops-server tag.** When generating the
+  auth key in the Tailscale admin console, attach the tag we use for
+  devops servers (the operator setting the runner up will know which one).
+  The auth key applies that tag to the device on registration; tagged
+  nodes don't go through the usual 90–180 day key-expiry cycle that would
+  otherwise force an interactive re-auth and knock a headless runner
+  offline. As a bonus, tailnet ACLs can grant access uniformly to every
+  tagged runner.
 
 ## Installing a CI agent (operator follow-up)
 
