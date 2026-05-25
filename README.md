@@ -11,12 +11,17 @@ checks current state and skips work that's already done.
 ## What it does
 
 1. Verifies the host is Apple Silicon macOS.
-2. Installs the Xcode Command Line Tools.
-3. Installs Homebrew (if missing) and runs `brew bundle` against the `Brewfile`.
-4. Wires `/opt/homebrew/bin` ahead of `/usr/bin` in `~/.zprofile` so brew-installed
+2. Prompts once for your sudo password and caches it for the run.
+3. Shows the current hostname and lets you change it before anything else
+   uses it (notably Tailscale, which would otherwise register the tailnet
+   node under whatever default macOS picked — e.g. "Sams-Mac-mini"). Press
+   Enter to keep, or type a new one.
+4. Installs the Xcode Command Line Tools.
+5. Installs Homebrew (if missing) and runs `brew bundle` against the `Brewfile`.
+6. Wires `/opt/homebrew/bin` ahead of `/usr/bin` in `~/.zprofile` so brew-installed
    CLIs (e.g. `git`) take precedence over the Apple-bundled versions in
    interactive shells.
-5. Installs Tailscale (formula, not cask) as a system LaunchDaemon — so
+7. Installs Tailscale (formula, not cask) as a system LaunchDaemon — so
    `tailscaled` starts at boot before any user logs in — and joins the
    tailnet via `TS_AUTHKEY` with Tailscale SSH enabled.
 
@@ -36,6 +41,9 @@ from that point.
 # Required only on first run (when the node isn't yet joined to the tailnet)
 export TS_AUTHKEY=tskey-auth-...
 
+# Optional: skip the hostname-confirmation prompt (useful for unattended re-runs)
+export SKIP_HOSTNAME_CHECK=1
+
 ./setup.sh
 ```
 
@@ -43,7 +51,8 @@ The script is intended to be re-run any time you want to bring a Mac back
 to the canonical baseline state — after macOS updates, after manual
 fiddling, or when this repo's `Brewfile` changes. Re-runs after the
 initial registration do **not** need `TS_AUTHKEY`; see "Tailscale
-persistence" below.
+persistence" below. Re-runs are also unattended-friendly if you set
+`SKIP_HOSTNAME_CHECK=1` and have passwordless sudo configured.
 
 ## Tailscale persistence and auth key requirements
 
@@ -89,7 +98,7 @@ which agent you pick:
 ## Layout
 
 - `setup.sh` — entry point; orchestrates each step.
-- `lib/` — one file per concern (`xcode.sh`, `homebrew.sh`, `tailscale.sh`), each exposing an `ensure_*` function.
+- `lib/` — one file per concern (`hostname.sh`, `xcode.sh`, `homebrew.sh`, `tailscale.sh`), each exposing an `ensure_*` function.
 - `Brewfile` — declarative Homebrew package list, applied by `brew bundle`.
 
 ## Secrets

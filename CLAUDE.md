@@ -78,7 +78,13 @@ supporting it (CI, docs, declarative package lists) doesn't belong here.
 
 - Don't add backwards-compatibility shims for older macOS versions or Intel
   Macs. Target is Apple Silicon, current macOS.
-- Don't add interactive prompts. The script must run unattended.
+- Don't add interactive prompts beyond the two that already exist
+  (`ensure_sudo` for the sudo password, `ensure_hostname` for the
+  first-run hostname confirmation). First-time setup is sitting-at-the-Mac
+  work, so a couple of intentional prompts are fine; mid-script prompts
+  for anything else are not. The hostname prompt has a `SKIP_HOSTNAME_CHECK=1`
+  escape hatch so unattended re-runs stay unattended; any new prompt
+  must include a similar opt-out.
 - Don't add a "dry-run" or "uninstall" mode unless asked — keeps scope tight.
 - Don't commit secrets or `.env` files. `.gitignore` covers these.
 
